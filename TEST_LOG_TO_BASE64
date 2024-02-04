@@ -1,0 +1,33 @@
+import json
+import gzip
+import base64
+
+# 创建一个日志事件字典
+log_event = {
+    "messageType": "DATA_MESSAGE",
+    "owner": "123456789012",
+    "logGroup": "exampleLogGroup",
+    "logStream": "exampleLogStream",
+    "subscriptionFilters": [
+        "exampleFilter"
+    ],
+    "logEvents": [
+        {
+            "id": "eventId1",
+            "timestamp": 1440442987000,
+            "message": "{\"message\": \"GitHub Action & action, action, action, sessionID\"}"
+        }
+    ]
+}
+
+# 将字典转换为 JSON
+json_data = json.dumps(log_event)
+
+# 压缩 JSON 数据
+compressed_data = gzip.compress(json_data.encode('utf-8'))
+
+# 对压缩数据进行 base64 编码
+encoded_data = base64.b64encode(compressed_data)
+
+# 打印编码后的数据
+print(encoded_data.decode('utf-8'))
