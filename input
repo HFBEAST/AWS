@@ -1,0 +1,65 @@
+import boto3
+import json
+from datetime import datetime
+import random
+
+def lambda_handler(event, context):
+    # 创建 CloudWatch Logs 客户端
+    logs_client = boto3.client('logs')
+
+    # 定义可能的 complete_tag 值
+    complete_tags = ['succeed', 'fail', 'hung up']
+
+    # 随机选择一个 complete_tag 值
+    chosen_complete_tag = random.choice(complete_tags)
+
+    # 日志流名称
+    stream_name = 'stream1'  # 或 'steam2'
+
+    # 日志组名称
+    log_group_name = '/aws/log_group/lambda_test'
+
+    # 获取当前时间戳（毫秒）
+    current_time = int(datetime.now().timestamp() * 1000)
+
+    # 创建日志消息内容
+    log_message = json.dumps({
+        "@timestamp": datetime.now().strftime("%Y%m%d%H%M"),
+        "complete_tag": chosen_complete_tag,
+        "message": f"complete_tag:{chosen_complete_tag}",
+        "sessionld": "session_123456789",
+        "connld": "connection_987654321",
+        "environment": "production",
+        "level": "INFO",
+        "path": "/var/log/my_app.log",
+        "server": "server-01.example.com",
+        "service": "my_app_service"
+    })
+
+    # 检查日志流是否存在
+    try:
+        logs_client.describe_log_streams(
+            logGroupName=log_group_name,
+            logStreamNamePrefix=stream_name
+        )
+    except logs_client.exceptions.ResourceNotFoundException:
+        # 如果日志流不存在，则创建它
+        logs_client.create_log_stream(
+            logGroupName=log_group_name,
+            logStreamName=stream_name
+        )
+
+    # 现在日志流已经存在，发送日志到指定的日志流
+    response = logs_client.put_log_events(
+        logGroupName=log_group_name,
+        logStreamName=stream_name,
+        logEvents=[
+            {
+                'timestamp': current_time,
+                'message': log_message
+            },
+        ],
+    )
+
+    return response
+
