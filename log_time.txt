@@ -1,0 +1,44 @@
+import json
+import boto3
+import base64
+import gzip
+from datetime import datetime  # Import the datetime module
+
+def lambda_handler(event, context):
+    # Initialization of the SNS client remains the same
+    sns = boto3.client('sns')
+    topic_arn = 'arn:aws:sns:ap-northeast-1:441133636880:scissionID'
+
+    # Parsing CloudWatch Logs data remains the same
+    cw_data = event['awslogs']['data']
+    compressed_payload = base64.b64decode(cw_data)
+    uncompressed_payload = gzip.decompress(compressed_payload)
+    log_data = json.loads(uncompressed_payload)
+    
+    # Convert the timestamp from milliseconds to seconds
+    timestamp_seconds = int(log_data['logEvents'][0]['timestamp']) / 1000.0  # Ensure division by 1000.0 for floating-point result
+    readable_timestamp = datetime.utcfromtimestamp(timestamp_seconds).strftime('%Y-%m-%d %H:%M:%S')  # Convert to readable format
+
+    # Build the message to send, including the human-readable timestamp
+    message = {
+        'logGroup': log_data['logGroup'],
+        'logStream': log_data['logStream'],
+        'timestamp': readable_timestamp,  # Use the converted timestamp
+        # Include any other details you want from the log data
+    }
+
+    # Sending the message to the SNS topic remains the same
+    sns.publish(
+        TopicArn=topic_arn,
+        Message=json.dumps(message),
+        Subject='New Log Event Notification'
+    )
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Message sent to SNS')
+    }
+
+#
+{"logGroup": "/aws/log_group/lambda_test", "logStream": "stream2", "timestamp": "2024-03-26 01:49:39"}
+#
