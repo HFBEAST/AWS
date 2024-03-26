@@ -1,0 +1,59 @@
+import json
+import boto3
+import requests
+
+# 第一部: Secrets Manager から API 資格情報を取得する
+def get_api_credentials(secret_name):
+    # AWS Secrets Manager クライアントを初期化
+    client = boto3.client('secretsmanager')
+    # Secrets Manager から秘密の値を取得
+    get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+    secret = get_secret_value_response['SecretString']
+    # 秘密の文字列を JSON オブジェクトに変換して返す
+    return json.loads(secret)
+
+# 第二部: 外部データベース API を呼び出す
+def call_external_api(api_url, credentials, query_params):
+    # Basic 認証のための資格情報をセットアップ
+    auth = (credentials['username'], credentials['password'])
+    # API リクエストを送信
+    response = requests.get(api_url, auth=auth, params=query_params)
+    # ステータスコードが 200 の場合は、レスポンスを JSON として返す
+    if response.status_code == 200:
+        return response.json()  # 応答を処理する
+    else:
+        # エラーが発生した場合は、エラー情報を含むオブジェクトを返す
+        return {'error': 'Failed to fetch data', 'statusCode': response.status_code}
+
+# 第三部: Lambda 関数のメインハンドラー
+def lambda_handler(event, context):
+    # イベントからログデータを解析する想定
+    # 実際のログデータの構造に応じて調整が必要
+    log_data = json.loads(event['logData'])
+    
+    # ログデータから必要なクエリパラメータの値を取得
+    query_param_value = log_data['queryParamValue']  # ログの構造に合わせて調整
+    
+    # API 資格情報を取得
+    secret_name = 'my_api_credentials'  # あなたのシークレットの名前に置き換えてください
+    credentials = get_api_credentials(secret_name)
+    
+    # API URL とクエリパラメータを構築
+    api_url = 'https://example-database-api.com/data'  # 実際の API URL に置き換えてください
+    query_params = {'key': query_param_value}  # 外部データベースAPIの要件に合わせてクエリパラメータを調整
+    
+    # 外部データベースAPIを呼び出す
+    api_response = call_external_api(api_url, credentials, query_params)
+    
+    # 応答を処理する
+    # 例えば、別のサービスにデータを送信するか、AWS に保存するなどのロジックをここに追加
+    print(api_response)
+    
+    # 結果を返す
+    return {
+        'statusCode': 200,
+        'body': json.dumps(api_response)
+    }
+
+
+
